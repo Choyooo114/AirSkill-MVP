@@ -1,0 +1,338 @@
+'use client'
+
+import React, { useState, useEffect, useCallback } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei'
+import { Timer, Play, Pause, RotateCcw, CheckCircle, XCircle } from 'lucide-react'
+
+// Types
+interface BaggageItem {
+  id: string
+  position: [number, number, number]
+  type: 'safe' | 'suspicious' | 'prohibited'
+  name: string
+  description: string
+  selected: boolean
+}
+
+interface GameState {
+  isPlaying: boolean
+  timeRemaining: number
+  score: number
+  currentScenario: number
+  baggageItems: BaggageItem[]
+}
+
+// Mock baggage data
+const INITIAL_BAGGAGE: BaggageItem[] = [
+  {
+    id: '1',
+    position: [-2, 0, 0],
+    type: 'safe',
+    name: 'Regular Suitcase',
+    description: 'Standard travel luggage',
+    selected: false
+  },
+  {
+    id: '2',
+    position: [0, 0, 0],
+    type: 'suspicious',
+    name: 'Suspicious Package',
+    description: 'Unusual shape and density',
+    selected: false
+  },
+  {
+    id: '3',
+    position: [2, 0, 0],
+    type: 'prohibited',
+    name: 'Prohibited Items',
+    description: 'Contains dangerous materials',
+    selected: false
+  },
+  {
+    id: '4',
+    position: [-1, 0, -2],
+    type: 'safe',
+    name: 'Backpack',
+    description: 'Student backpack with books',
+    selected: false
+  }
+]
+
+// Baggage Component
+function BaggageBox({ item, onSelect }: { item: BaggageItem; onSelect: (id: string) => void }) {
+  const [hovered, setHovered] = useState(false)
+
+  const getColor = () => {
+    if (item.selected) {
+      return item.type === 'safe' ? '#ef4444' : '#22c55e' // Red for wrong, Green for correct
+    }
+    if (hovered) return '#3b82f6' // Blue on hover
+    return '#64748b' // Default gray
+  }
+
+  return (
+    <mesh
+      position={item.position}
+      onClick={() => onSelect(item.id)}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+      scale={item.selected ? [1.1, 1.1, 1.1] : [1, 1, 1]}
+    >
+      <boxGeometry args={[1, 0.6, 0.8]} />
+      <meshStandardMaterial
+        color={getColor()}
+        transparent={true}
+        opacity={item.selected ? 0.8 : 0.7}
+      />
+      {/* Label */}
+      <mesh position={[0, 0.8, 0]}>
+        <planeGeometry args={[1.5, 0.3]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+      </mesh>
+    </mesh>
+  )
+}
+
+// Scene Component
+function GameScene({ gameState, onBaggageSelect }: {
+  gameState: GameState
+  onBaggageSelect: (id: string) => void
+}) {
+  return (
+    <>
+      <PerspectiveCamera makeDefault position={[0, 3, 5]} />
+      <OrbitControls
+        enablePan={false}
+        enableZoom={true}
+        maxPolarAngle={Math.PI / 2}
+        minDistance={3}
+        maxDistance={8}
+      />
+      
+      {/* Lighting */}
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} intensity={1} />
+      <pointLight position={[-10, -10, -5]} intensity={0.5} />
+      
+      {/* Environment */}
+      <Environment preset="warehouse" />
+      
+      {/* Scanner Table */}
+      <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[8, 6]} />
+        <meshStandardMaterial color="#2d3748" />
+      </mesh>
+      
+      {/* Baggage Items */}
+      {gameState.baggageItems.map((item) => (
+        <BaggageBox
+          key={item.id}
+          item={item}
+          onSelect={onBaggageSelect}
+        />
+      ))}
+    </>
+  )
+}
+
+// Main Simulation Component
+export default function SimulationPage() {
+  const [gameState, setGameState] = useState<GameState>({
+    isPlaying: false,
+    timeRemaining: 60,
+    score: 0,
+    currentScenario: 1,
+    baggageItems: INITIAL_BAGGAGE
+  })
+
+  const [feedback, setFeedback] = useState<string>('')
+  const [showResults, setShowResults] = useState(false)
+
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+
+    if (gameState.isPlaying && gameState.timeRemaining > 0) {
+      interval = setInterval(() => {
+        setGameState(prev => ({
+          ...prev,
+          timeRemaining: prev.timeRemaining - 1
+        }))
+      }, 1000)
+    } else if (gameState.timeRemaining === 0) {
+      // Time's up - end game
+      setGameState(prev => ({ ...prev, isPlaying: false }))
+      setShowResults(true)
+    }
+
+    return () => clearInterval(interval)
+  }, [gameState.isPlaying, gameState.timeRemaining])
+
+  // Start/Pause Game
+  const toggleGame = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: !prev.isPlaying
+    }))
+  }, [])
+
+  // Reset Game
+  const resetGame = useCallback(() => {
+    setGameState({
+      isPlaying: false,
+      timeRemaining: 60,
+      score: 0,
+      currentScenario: 1,
+      baggageItems: INITIAL_BAGGAGE.map(item => ({ ...item, selected: false }))
+    })
+    setFeedback('')
+    setShowResults(false)
+  }, [])
+
+  // Handle Baggage Selection
+  const handleBaggageSelect = useCallback((id: string) => {
+    if (!gameState.isPlaying) return
+
+    setGameState(prev => {
+      const updatedItems = prev.baggageItems.map(item => {
+        if (item.id === id) {
+          const wasCorrectSelection = item.type !== 'safe'
+          const points = wasCorrectSelection ? 10 : -5
+          
+          // Set feedback
+          setFeedback(wasCorrectSelection 
+            ? `Correct! +${points} points` 
+            : `Wrong selection! ${points} points`
+          )
+
+          // Clear feedback after 2 seconds
+          setTimeout(() => setFeedback(''), 2000)
+
+          return { ...item, selected: true }
+        }
+        return item
+      })
+
+      return {
+        ...prev,
+        baggageItems: updatedItems,
+        score: prev.score + (updatedItems.find(item => item.id === id)?.type !== 'safe' ? 10 : -5)
+      }
+    })
+  }, [gameState.isPlaying])
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <div className="bg-gray-800 p-4 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold">AirSkill - Security Screening</h1>
+          
+          {/* Game Stats */}
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
+              <Timer className="w-5 h-5" />
+              <span className="text-xl font-mono">{formatTime(gameState.timeRemaining)}</span>
+            </div>
+            <div className="text-xl">
+              Score: <span className="font-bold text-yellow-400">{gameState.score}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Game Controls */}
+      <div className="bg-gray-800 p-3 border-t border-gray-700">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex space-x-3">
+            <button
+              onClick={toggleGame}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              {gameState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              <span>{gameState.isPlaying ? 'Pause' : 'Start'}</span>
+            </button>
+            
+            <button
+              onClick={resetGame}
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Reset</span>
+            </button>
+          </div>
+
+          {/* Instructions */}
+          <div className="text-sm text-gray-300">
+            Click on suspicious or prohibited baggage items!
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback Message */}
+      {feedback && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
+          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
+            feedback.includes('Correct') 
+              ? 'bg-green-600 text-white' 
+              : 'bg-red-600 text-white'
+          }`}>
+            {feedback.includes('Correct') ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <XCircle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{feedback}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3D Scene */}
+      <div className="h-[calc(100vh-140px)]">
+        <Canvas shadows>
+          <GameScene 
+            gameState={gameState} 
+            onBaggageSelect={handleBaggageSelect}
+          />
+        </Canvas>
+      </div>
+
+      {/* Results Modal */}
+      {showResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold mb-4 text-center">Game Complete!</h2>
+            <div className="text-center space-y-4">
+              <div className="text-4xl font-bold text-yellow-400">{gameState.score}</div>
+              <p className="text-gray-300">Final Score</p>
+              
+              <div className="pt-4 space-y-2">
+                <p className="text-sm text-gray-400">
+                  Time: {formatTime(60 - gameState.timeRemaining)}
+                </p>
+                <p className="text-sm text-gray-400">
+                  Scenario: Security Screening Level {gameState.currentScenario}
+                </p>
+              </div>
+
+              <button
+                onClick={resetGame}
+                className="w-full mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                Play Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
