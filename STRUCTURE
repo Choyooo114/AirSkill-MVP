@@ -1,0 +1,214 @@
+# AirSkill MVP - Security Screening Simulation
+
+## Project Overview
+AirSkill เป็นระบบจำลองการฝึกอบรมสำหรับงานด้านการบินและสนามบิน โดยใช้ Game-Based Learning และ AI
+
+## MVP Focus: Security Baggage Screening Simulation
+สถานการณ์จำลอง: การตรวจสอบความปลอดภัยของสัมภาระ - ผู้ใช้ต้องระบุสัมภาระที่น่าสงสัยภายในเวลาที่กำหนด
+
+## Repository Structure
+
+```
+airskill-mvp/
+├── README.md
+├── package.json
+├── next.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── .gitignore
+├── .env.local.example
+│
+├── public/
+│   ├── favicon.ico
+│   ├── models/          # 3D models for Three.js
+│   │   ├── luggage/
+│   │   └── scanner/
+│   ├── textures/        # Texture files
+│   ├── sounds/          # Sound effects
+│   └── images/          # UI images
+│
+├── src/
+│   ├── app/             # Next.js App Router
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── page.tsx     # Landing page
+│   │   ├── simulation/
+│   │   │   └── page.tsx # Main simulation page
+│   │   └── results/
+│   │       └── page.tsx # Results page
+│   │
+│   ├── components/      # React Components
+│   │   ├── ui/          # Basic UI components
+│   │   │   ├── Button.tsx
+│   │   │   ├── Card.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   └── Timer.tsx
+│   │   │
+│   │   ├── simulation/  # Simulation-specific components
+│   │   │   ├── Scene3D.tsx          # Three.js scene wrapper
+│   │   │   ├── BaggageItem.tsx      # Individual baggage component
+│   │   │   ├── Scanner.tsx          # X-ray scanner component
+│   │   │   ├── GameUI.tsx           # Game interface overlay
+│   │   │   └── ScoreBoard.tsx       # Score display
+│   │   │
+│   │   └── layout/      # Layout components
+│   │       ├── Header.tsx
+│   │       ├── Footer.tsx
+│   │       └── Navigation.tsx
+│   │
+│   ├── lib/             # Utility functions
+│   │   ├── three/       # Three.js utilities
+│   │   │   ├── scene-setup.ts
+│   │   │   ├── lighting.ts
+│   │   │   ├── camera-controls.ts
+│   │   │   └── loader.ts
+│   │   │
+│   │   ├── game/        # Game logic
+│   │   │   ├── scenarios.ts         # Scenario definitions
+│   │   │   ├── scoring.ts           # Scoring system
+│   │   │   ├── difficulty.ts        # Difficulty management
+│   │   │   └── timer.ts             # Timer utilities
+│   │   │
+│   │   ├── data/        # Static data
+│   │   │   ├── baggage-types.ts     # Baggage item definitions
+│   │   │   ├── prohibited-items.ts  # Prohibited items list
+│   │   │   └── scenarios-data.ts    # Scenario configurations
+│   │   │
+│   │   └── utils/       # General utilities
+│   │       ├── constants.ts
+│   │       ├── helpers.ts
+│   │       └── types.ts
+│   │
+│   ├── hooks/           # Custom React hooks
+│   │   ├── useGameState.ts
+│   │   ├── useTimer.ts
+│   │   ├── useScore.ts
+│   │   └── useThreeJS.ts
+│   │
+│   ├── styles/          # CSS files
+│   │   ├── globals.css
+│   │   ├── simulation.css
+│   │   └── components.css
+│   │
+│   └── types/           # TypeScript type definitions
+│       ├── game.ts
+│       ├── simulation.ts
+│       ├── baggage.ts
+│       └── user.ts
+│
+├── docs/                # Documentation
+│   ├── SETUP.md
+│   ├── DEVELOPMENT.md
+│   ├── SCENARIOS.md
+│   └── API.md
+│
+└── tests/               # Test files
+    ├── components/
+    ├── lib/
+    └── integration/
+```
+
+## Technology Stack
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type safety
+- **Three.js** - 3D graphics and animation
+- **Tailwind CSS** - Styling
+- **Framer Motion** - Animations and transitions
+
+### Development Tools
+- **ESLint** - Code linting
+- **Prettier** - Code formatting
+- **Husky** - Git hooks
+- **Jest** - Testing framework
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Git
+
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/airskill-mvp.git
+cd airskill-mvp
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.local.example .env.local
+
+# Run development server
+npm run dev
+```
+
+### Development Scripts
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run test         # Run tests
+npm run type-check   # TypeScript type checking
+```
+
+## MVP Features Roadmap
+
+### Phase 1: Basic Simulation (Current)
+- [x] Project setup and repository structure
+- [ ] Basic 3D scene with Three.js
+- [ ] Simple baggage models and scanner
+- [ ] Click interaction system
+- [ ] Basic scoring mechanism
+- [ ] Timer functionality
+
+### Phase 2: Enhanced Gameplay
+- [ ] Multiple baggage types
+- [ ] Prohibited items database
+- [ ] Difficulty levels
+- [ ] Sound effects and feedback
+- [ ] Performance metrics
+
+### Phase 3: AI Integration (Future)
+- [ ] AI-powered scenario generation
+- [ ] Adaptive difficulty
+- [ ] Performance analysis
+- [ ] Personalized feedback
+
+## Key Components Overview
+
+### Scene3D Component
+- Three.js scene management
+- Camera controls and positioning
+- Lighting setup
+- Object interaction handling
+
+### Game Logic
+- Scenario management system
+- Scoring and feedback system
+- Timer and progression tracking
+- User interaction validation
+
+### UI Components
+- Responsive game interface
+- Real-time score display
+- Timer visualization
+- Results and feedback screens
+
+## Contributing Guidelines
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+MIT License - see LICENSE file for details
+
+## Contact
+For questions about this project, please open an issue on GitHub.
