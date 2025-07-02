@@ -1,0 +1,379 @@
+// src/hooks/useGameState.ts
+
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { GameState, GameScenario, BaggageItem, GameResult, GameSettings } from '@/types/game'
+import { GameScoring, ScenarioManager } from '@/lib/game/scenarios'
+
+interface UseGameStateOptions {
+  onGameEnd?: (result: GameResult) => void
+  onScoreChange?: (score: number, change: number) => void
+  autoSave?: boolean
+}
+
+export function useGameState(options: UseGameStateOptions = {}) {
+  const { onGameEnd, onScoreChange, autoSave = false } = options
+  
+  const [gameState, setGameState] = useState<GameState>({
+    isPlaying: false,
+    isPaused: false,
+    timeRemaining: 0,
+    totalTime: 0,
+    score: 0,
+    currentScenario: 0,
+    baggageItems: [],
+    selectedItems: [],
+    correctSelections: 0,
+    incorrectSelections: 0,
+    gamePhase: 'setup'
+  })
+  
+  const [currentSelectedItem, setCurrentSelectedItem] = useState<string | null>(null)
+  const [gameResult, setGameResult] = useState<GameResult | null>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize game with scenario
+  const initializeGame = useCallback((scenario: GameScenario, settings: GameSettings) => {
+    const timeLimit = Math.floor(scenario.timeLimit * (settings.difficulty === 'easy' ? 1.5 : 
+                                                      settings.difficulty === 'medium' ? 1.0 :
+                                                      settings.difficulty === 'hard' ? 0.8 : 0.6))
+
+    setGameState({
+      isPlaying: false,
+      isPaused: false,
+      timeRemaining: timeLimit,
+      totalTime: timeLimit,
+      score: 0,
+      currentScenario: GAME_SCENARIOS.findIndex(s => s.id === scenario.id),
+      baggageItems: scenario.baggageItems.map(item => ({ ...item, selected: false })),
+      selectedItems: [],
+      correctSelections: 0,
+      incorrectSelections: 0,
+      gamePhase: 'setup'
+    })
+    
+    setGameResult(null)
+    setCurrentSelectedItem(null)
+  }, [])
+
+  // Start game
+  const startGame = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: true,
+      isPaused: false,
+      gamePhase: 'playing'
+    }))
+  }, [])
+
+  // Pause game
+  const pauseGame = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      isPaused: true,
+      gamePhase: 'paused'
+    }))
+  }, [])
+
+  // Resume game
+  const resumeGame = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: true,
+      isPaused: false,
+      gamePhase: 'playing'
+    }))
+  }, [])
+
+  // Select baggage item
+  const selectBaggageItem = useCallback((itemId: string) => {
+    if (!gameState.isPlaying || gameState.selectedItems.includes(itemId)) {
+      return { correct: false, scoreChange: 0, alreadySelected: true }
+    }
+
+    const item = gameState.baggageItems.find(b => b.id === itemId)
+    if (!item) {
+      return { correct: false, scoreChange: 0, itemNotFound: true }
+    }
+
+    const isCorrectSelection = item.type !== 'safe'
+    const scoreChange = GameScoring.calculateItemScore(item, isCorrectSelection)
+
+    setGameState(prev => ({
+      ...prev,
+      selectedItems: [...prev.selectedItems, itemId],
+      baggageItems: prev.baggageItems.map(b => 
+        b.id === itemId ? { ...b, selected: true } : b
+      ),
+      score: prev.score + scoreChange,
+      correctSelections: isCorrectSelection ? prev.correctSelections + 1 : prev.correctSelections,
+      incorrectSelections: !isCorrectSelection ? prev.incorrectSelections + 1 : prev.incorrectSelections
+    }))
+
+    setCurrentSelectedItem(itemId)
+
+    // Clear selection highlight after animation
+    setTimeout(() => {
+      setCurrentSelectedItem(null)
+    }, 1500)
+
+    // Trigger score change callback
+    if (onScoreChange) {
+      onScoreChange(gameState.score + scoreChange, scoreChange)
+    }
+
+    return { 
+      correct: isCorrectSelection, 
+      scoreChange, 
+      item: {
+        name: item.name,
+        type: item.type,
+        riskLevel: item.riskLevel
+      }
+    }
+  }, [gameState.isPlaying, gameState.selectedItems, gameState.baggageItems, gameState.score, onScoreChange])
+
+  // End game
+  const endGame = useCallback((reason: 'completed' | 'timeout' | 'user_quit' = 'completed') => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+
+    const scenario = GAME_SCENARIOS[gameState.currentScenario]
+    if (!scenario) return
+
+    // Calculate final score with bonuses
+    const timeBonus = GameScoring.calculateTimeBonus(gameState.timeRemaining, gameState.totalTime)
+    const isPerfect = gameState.correctSelections === scenario.baggageItems.filter(item => item.type !== 'safe').length &&
+                     gameState.incorrectSelections === 0
+    const noMistakes = gameState.incorrectSelections === 0
+
+    const finalScore = GameScoring.calculateFinalScore(
+      gameState.correctSelections,
+      gameState.incorrectSelections,
+      timeBonus,
+      'medium', // TODO: Get from settings
+      isPerfect,
+      noMistakes
+    )
+
+    // Determine performance level
+    const scorePercentage = (finalScore / (scenario.passingScore * 1.5)) * 100
+    const performance = scorePercentage >= 90 ? 'excellent' :
+                       scorePercentage >= 75 ? 'good' :
+                       scorePercentage >= 60 ? 'average' : 'needs_improvement'
+
+    const result: GameResult = {
+      scenarioId: scenario.id,
+      scenarioName: scenario.name,
+      score: {
+        correctSelections: gameState.correctSelections,
+        incorrectSelections: gameState.incorrectSelections,
+        timeBonus,
+        difficultyMultiplier: 1.0,
+        totalScore: finalScore,
+        maxPossibleScore: scenario.passingScore * 1.5,
+        percentage: scorePercentage
+      },
+      timeCompleted: gameState.totalTime - gameState.timeRemaining,
+      itemsCorrect: gameState.correctSelections,
+      itemsIncorrect: gameState.incorrectSelections,
+      itemsMissed: scenario.baggageItems.filter(item => item.type !== 'safe').length - gameState.correctSelections,
+      performance,
+      feedback: ScenarioManager.validateScenarioCompletion(scenario, gameState.selectedItems, finalScore).feedback,
+      completedAt: new Date()
+    }
+
+    setGameResult(result)
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      isPaused: false,
+      gamePhase: 'completed',
+      score: finalScore
+    }))
+
+    // Auto-save if enabled
+    if (autoSave) {
+      saveGameResult(result)
+    }
+
+    // Trigger completion callback
+    if (onGameEnd) {
+      onGameEnd(result)
+    }
+  }, [gameState, onGameEnd, autoSave])
+
+  // Timer effect
+  useEffect(() => {
+    if (gameState.isPlaying && gameState.timeRemaining > 0) {
+      timerRef.current = setInterval(() => {
+        setGameState(prev => {
+          const newTimeRemaining = prev.timeRemaining - 1
+          
+          // Check if time's up
+          if (newTimeRemaining <= 0) {
+            // End game will be called by the effect cleanup
+            return { ...prev, timeRemaining: 0, isPlaying: false }
+          }
+          
+          return { ...prev, timeRemaining: newTimeRemaining }
+        })
+      }, 1000)
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [gameState.isPlaying])
+
+  // Handle timeout
+  useEffect(() => {
+    if (gameState.timeRemaining === 0 && gameState.gamePhase === 'playing') {
+      endGame('timeout')
+    }
+  }, [gameState.timeRemaining, gameState.gamePhase, endGame])
+
+  // Reset game
+  const resetGame = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      isPaused: false,
+      timeRemaining: prev.totalTime,
+      score: 0,
+      selectedItems: [],
+      correctSelections: 0,
+      incorrectSelections: 0,
+      gamePhase: 'setup',
+      baggageItems: prev.baggageItems.map(item => ({ ...item, selected: false }))
+    }))
+    
+    setGameResult(null)
+    setCurrentSelectedItem(null)
+  }, [])
+
+  // Save game result (mock implementation)
+  const saveGameResult = useCallback(async (result: GameResult) => {
+    try {
+      // In a real app, this would save to a backend/database
+      const savedResults = JSON.parse(localStorage.getItem('airskill_results') || '[]')
+      savedResults.push(result)
+      localStorage.setItem('airskill_results', JSON.stringify(savedResults))
+      console.log('Game result saved:', result)
+    } catch (error) {
+      console.error('Failed to save game result:', error)
+    }
+  }, [])
+
+  return {
+    gameState,
+    gameResult,
+    currentSelectedItem,
+    initializeGame,
+    startGame,
+    pauseGame,
+    resumeGame,
+    selectBaggageItem,
+    endGame,
+    resetGame,
+    saveGameResult
+  }
+}
+
+// Additional utility hooks
+
+export function useTimer(initialTime: number) {
+  const [timeRemaining, setTimeRemaining] = useState(initialTime)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const start = useCallback(() => {
+    setIsRunning(true)
+  }, [])
+
+  const pause = useCallback(() => {
+    setIsRunning(false)
+  }, [])
+
+  const reset = useCallback((newTime?: number) => {
+    setIsRunning(false)
+    setTimeRemaining(newTime ?? initialTime)
+  }, [initialTime])
+
+  useEffect(() => {
+    if (isRunning && timeRemaining > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeRemaining(prev => Math.max(0, prev - 1))
+      }, 1000)
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isRunning, timeRemaining])
+
+  const formatTime = useCallback((seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }, [])
+
+  return {
+    timeRemaining,
+    isRunning,
+    formattedTime: formatTime(timeRemaining),
+    start,
+    pause,
+    reset
+  }
+}
+
+export function useScore() {
+  const [score, setScore] = useState(0)
+  const [scoreHistory, setScoreHistory] = useState<Array<{ change: number; timestamp: number }>>([])
+
+  const addScore = useCallback((points: number) => {
+    setScore(prev => prev + points)
+    setScoreHistory(prev => [...prev, { change: points, timestamp: Date.now() }])
+  }, [])
+
+  const resetScore = useCallback(() => {
+    setScore(0)
+    setScoreHistory([])
+  }, [])
+
+  const getRecentScoreChanges = useCallback((withinMs: number = 5000) => {
+    const now = Date.now()
+    return scoreHistory.filter(entry => now - entry.timestamp <= withinMs)
+  }, [scoreHistory])
+
+  return {
+    score,
+    scoreHistory,
+    addScore,
+    resetScore,
+    getRecentScoreChanges
+  }
+}
