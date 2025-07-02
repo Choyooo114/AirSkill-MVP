@@ -1,0 +1,175 @@
+// src/types/game.ts
+
+export interface Vector3 {
+  x: number
+  y: number
+  z: number
+}
+
+export type BaggageType = 'safe' | 'suspicious' | 'prohibited'
+
+export interface BaggageItem {
+  id: string
+  position: [number, number, number]
+  rotation?: [number, number, number]
+  type: BaggageType
+  name: string
+  description: string
+  selected: boolean
+  modelPath?: string
+  riskLevel: 1 | 2 | 3 | 4 | 5 // 1 = safe, 5 = extremely dangerous
+  prohibitedReason?: string
+}
+
+export interface GameScenario {
+  id: string
+  name: string
+  description: string
+  timeLimit: number // in seconds
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert'
+  baggageItems: BaggageItem[]
+  passingScore: number
+  objectives: string[]
+}
+
+export interface GameState {
+  isPlaying: boolean
+  isPaused: boolean
+  timeRemaining: number
+  totalTime: number
+  score: number
+  currentScenario: number
+  baggageItems: BaggageItem[]
+  selectedItems: string[]
+  correctSelections: number
+  incorrectSelections: number
+  gamePhase: 'setup' | 'playing' | 'paused' | 'completed' | 'results'
+}
+
+export interface GameSettings {
+  soundEnabled: boolean
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert'
+  timeLimit: number
+  showHints: boolean
+  cameraControlsEnabled: boolean
+}
+
+export interface ScoreCalculation {
+  correctSelections: number
+  incorrectSelections: number
+  timeBonus: number
+  difficultyMultiplier: number
+  totalScore: number
+  maxPossibleScore: number
+  percentage: number
+}
+
+export interface GameResult {
+  scenarioId: string
+  scenarioName: string
+  score: ScoreCalculation
+  timeCompleted: number
+  itemsCorrect: number
+  itemsIncorrect: number
+  itemsMissed: number
+  performance: 'excellent' | 'good' | 'average' | 'needs_improvement'
+  feedback: string[]
+  completedAt: Date
+}
+
+export interface UserProgress {
+  totalGamesPlayed: number
+  averageScore: number
+  bestScore: number
+  scenariosCompleted: string[]
+  achievements: Achievement[]
+  skillLevels: SkillLevel[]
+}
+
+export interface Achievement {
+  id: string
+  name: string
+  description: string
+  icon: string
+  unlockedAt?: Date
+  progress: number
+  maxProgress: number
+}
+
+export interface SkillLevel {
+  category: 'detection' | 'speed' | 'accuracy' | 'decision_making'
+  level: number
+  experience: number
+  nextLevelExperience: number
+}
+
+// Game Events
+export type GameEvent = 
+  | { type: 'GAME_START'; payload: { scenarioId: string } }
+  | { type: 'GAME_PAUSE' }
+  | { type: 'GAME_RESUME' }
+  | { type: 'GAME_END'; payload: { reason: 'completed' | 'timeout' | 'user_quit' } }
+  | { type: 'ITEM_SELECT'; payload: { itemId: string; correct: boolean } }
+  | { type: 'SCORE_UPDATE'; payload: { score: number; change: number } }
+  | { type: 'TIME_UPDATE'; payload: { timeRemaining: number } }
+  | { type: 'HINT_USED'; payload: { itemId: string } }
+
+// API Types
+export interface GameAPI {
+  startGame: (scenarioId: string) => Promise<GameState>
+  pauseGame: () => Promise<GameState>
+  resumeGame: () => Promise<GameState>
+  endGame: () => Promise<GameResult>
+  selectItem: (itemId: string) => Promise<{ correct: boolean; scoreChange: number }>
+  getScenarios: () => Promise<GameScenario[]>
+  getProgress: () => Promise<UserProgress>
+  saveResult: (result: GameResult) => Promise<void>
+}
+
+// Component Props Types
+export interface GameSceneProps {
+  gameState: GameState
+  settings: GameSettings
+  onItemSelect: (itemId: string) => void
+  onGameEvent: (event: GameEvent) => void
+}
+
+export interface BaggageComponentProps {
+  item: BaggageItem
+  isInteractive: boolean
+  showHint?: boolean
+  onSelect: (itemId: string) => void
+  onHover?: (itemId: string | null) => void
+}
+
+export interface GameUIProps {
+  gameState: GameState
+  settings: GameSettings
+  onGameControl: (action: 'start' | 'pause' | 'resume' | 'reset' | 'quit') => void
+  onSettingsChange: (settings: Partial<GameSettings>) => void
+}
+
+export interface ScoreBoardProps {
+  score: number
+  timeRemaining: number
+  correctSelections: number
+  incorrectSelections: number
+  objectives: string[]
+  completedObjectives: string[]
+}
+
+// Constants
+export const DIFFICULTY_SETTINGS = {
+  easy: {
+    timeMultiplier: 1.5,
+    hintAvailable: true,
+    scoreMultiplier: 0.8,
+    maxSuspiciousItems: 2
+  },
+  medium: {
+    timeMultiplier: 1.0,
+    hintAvailable: true,
+    scoreMultiplier: 1.0,
+    maxSuspiciousItems: 3
+  },
+  har
