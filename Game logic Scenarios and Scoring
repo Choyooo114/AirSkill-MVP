@@ -1,0 +1,348 @@
+// src/lib/game/scenarios.ts
+
+import { GameScenario, BaggageItem, DIFFICULTY_SETTINGS, SCORING_RULES } from '@/types/game'
+
+// Predefined baggage items for scenarios
+export const BAGGAGE_LIBRARY: Record<string, BaggageItem> = {
+  // Safe items
+  regular_suitcase: {
+    id: 'regular_suitcase',
+    position: [0, 0, 0],
+    type: 'safe',
+    name: 'Regular Suitcase',
+    description: 'Standard travel luggage with clothes',
+    selected: false,
+    riskLevel: 1,
+    modelPath: '/models/luggage/suitcase.glb'
+  },
+  backpack: {
+    id: 'backpack',
+    position: [0, 0, 0],
+    type: 'safe',
+    name: 'Student Backpack',
+    description: 'Backpack with books and school supplies',
+    selected: false,
+    riskLevel: 1,
+    modelPath: '/models/luggage/backpack.glb'
+  },
+  laptop_bag: {
+    id: 'laptop_bag',
+    position: [0, 0, 0],
+    type: 'safe',
+    name: 'Laptop Bag',
+    description: 'Business bag with laptop and documents',
+    selected: false,
+    riskLevel: 1,
+    modelPath: '/models/luggage/laptop_bag.glb'
+  },
+  
+  // Suspicious items
+  oversized_electronics: {
+    id: 'oversized_electronics',
+    position: [0, 0, 0],
+    type: 'suspicious',
+    name: 'Large Electronic Device',
+    description: 'Unusually large electronic device requiring inspection',
+    selected: false,
+    riskLevel: 3,
+    prohibitedReason: 'Requires additional screening',
+    modelPath: '/models/luggage/electronics.glb'
+  },
+  dense_package: {
+    id: 'dense_package',
+    position: [0, 0, 0],
+    type: 'suspicious',
+    name: 'Dense Package',
+    description: 'Package with unusual density pattern',
+    selected: false,
+    riskLevel: 3,
+    prohibitedReason: 'Suspicious density reading',
+    modelPath: '/models/luggage/dense_package.glb'
+  },
+  wrapped_items: {
+    id: 'wrapped_items',
+    position: [0, 0, 0],
+    type: 'suspicious',
+    name: 'Heavily Wrapped Items',
+    description: 'Items wrapped in multiple layers',
+    selected: false,
+    riskLevel: 3,
+    prohibitedReason: 'Obscured contents require inspection',
+    modelPath: '/models/luggage/wrapped.glb'
+  },
+  
+  // Prohibited items
+  sharp_objects: {
+    id: 'sharp_objects',
+    position: [0, 0, 0],
+    type: 'prohibited',
+    name: 'Sharp Objects',
+    description: 'Bag containing knives and sharp tools',
+    selected: false,
+    riskLevel: 4,
+    prohibitedReason: 'Sharp objects not allowed in carry-on',
+    modelPath: '/models/luggage/sharp_objects.glb'
+  },
+  liquid_bottles: {
+    id: 'liquid_bottles',
+    position: [0, 0, 0],
+    type: 'prohibited',
+    name: 'Large Liquid Containers',
+    description: 'Bottles exceeding 100ml liquid limit',
+    selected: false,
+    riskLevel: 4,
+    prohibitedReason: 'Liquids exceed permitted volume',
+    modelPath: '/models/luggage/liquids.glb'
+  },
+  chemical_materials: {
+    id: 'chemical_materials',
+    position: [0, 0, 0],
+    type: 'prohibited',
+    name: 'Chemical Materials',
+    description: 'Container with hazardous chemicals',
+    selected: false,
+    riskLevel: 5,
+    prohibitedReason: 'Hazardous materials strictly prohibited',
+    modelPath: '/models/luggage/chemicals.glb'
+  },
+  weapon_components: {
+    id: 'weapon_components',
+    position: [0, 0, 0],
+    type: 'prohibited',
+    name: 'Weapon Components',
+    description: 'Parts that could be assembled into weapons',
+    selected: false,
+    riskLevel: 5,
+    prohibitedReason: 'Weapon components strictly prohibited',
+    modelPath: '/models/luggage/weapon_parts.glb'
+  }
+}
+
+// Helper function to create positioned baggage items
+function createPositionedItem(itemId: string, position: [number, number, number]): BaggageItem {
+  const baseItem = BAGGAGE_LIBRARY[itemId]
+  if (!baseItem) {
+    throw new Error(`Baggage item "${itemId}" not found in library`)
+  }
+  
+  return {
+    ...baseItem,
+    id: `${itemId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    position,
+    selected: false
+  }
+}
+
+// Scenario definitions
+export const GAME_SCENARIOS: GameScenario[] = [
+  {
+    id: 'basic_screening',
+    name: 'Basic Security Screening',
+    description: 'Introduction to baggage screening - identify obvious prohibited items',
+    timeLimit: 90,
+    difficulty: 'easy',
+    passingScore: 60,
+    objectives: [
+      'Identify all prohibited items',
+      'Avoid selecting safe items',
+      'Complete within time limit'
+    ],
+    baggageItems: [
+      createPositionedItem('regular_suitcase', [-2, 0, 0]),
+      createPositionedItem('backpack', [0, 0, 0]),
+      createPositionedItem('sharp_objects', [2, 0, 0]),
+      createPositionedItem('laptop_bag', [-1, 0, -2]),
+      createPositionedItem('liquid_bottles', [1, 0, -2])
+    ]
+  },
+  
+  {
+    id: 'suspicious_items',
+    name: 'Suspicious Item Detection',
+    description: 'Identify items that require additional screening',
+    timeLimit: 120,
+    difficulty: 'medium',
+    passingScore: 70,
+    objectives: [
+      'Identify suspicious items for inspection',
+      'Distinguish between suspicious and prohibited',
+      'Maintain high accuracy'
+    ],
+    baggageItems: [
+      createPositionedItem('regular_suitcase', [-3, 0, 0]),
+      createPositionedItem('oversized_electronics', [-1, 0, 0]),
+      createPositionedItem('dense_package', [1, 0, 0]),
+      createPositionedItem('backpack', [3, 0, 0]),
+      createPositionedItem('wrapped_items', [-2, 0, -2]),
+      createPositionedItem('laptop_bag', [0, 0, -2]),
+      createPositionedItem('sharp_objects', [2, 0, -2])
+    ]
+  },
+  
+  {
+    id: 'mixed_threats',
+    name: 'Mixed Threat Assessment',
+    description: 'Complex scenario with multiple threat types',
+    timeLimit: 150,
+    difficulty: 'hard',
+    passingScore: 80,
+    objectives: [
+      'Identify all threat categories',
+      'Prioritize high-risk items',
+      'Demonstrate expert judgment'
+    ],
+    baggageItems: [
+      createPositionedItem('regular_suitcase', [-3, 0, 1]),
+      createPositionedItem('backpack', [-1, 0, 1]),
+      createPositionedItem('laptop_bag', [1, 0, 1]),
+      createPositionedItem('oversized_electronics', [3, 0, 1]),
+      createPositionedItem('dense_package', [-2, 0, 0]),
+      createPositionedItem('wrapped_items', [0, 0, 0]),
+      createPositionedItem('chemical_materials', [2, 0, 0]),
+      createPositionedItem('sharp_objects', [-3, 0, -1]),
+      createPositionedItem('liquid_bottles', [-1, 0, -1]),
+      createPositionedItem('weapon_components', [1, 0, -1])
+    ]
+  },
+  
+  {
+    id: 'expert_challenge',
+    name: 'Expert Challenge',
+    description: 'Ultimate test for security professionals',
+    timeLimit: 180,
+    difficulty: 'expert',
+    passingScore: 90,
+    objectives: [
+      'Perfect threat identification',
+      'Zero false positives',
+      'Complete under time pressure'
+    ],
+    baggageItems: [
+      createPositionedItem('regular_suitcase', [-4, 0, 2]),
+      createPositionedItem('backpack', [-2, 0, 2]),
+      createPositionedItem('laptop_bag', [0, 0, 2]),
+      createPositionedItem('regular_suitcase', [2, 0, 2]),
+      createPositionedItem('backpack', [4, 0, 2]),
+      createPositionedItem('oversized_electronics', [-3, 0, 0]),
+      createPositionedItem('dense_package', [-1, 0, 0]),
+      createPositionedItem('wrapped_items', [1, 0, 0]),
+      createPositionedItem('oversized_electronics', [3, 0, 0]),
+      createPositionedItem('chemical_materials', [-4, 0, -2]),
+      createPositionedItem('sharp_objects', [-2, 0, -2]),
+      createPositionedItem('liquid_bottles', [0, 0, -2]),
+      createPositionedItem('weapon_components', [2, 0, -2]),
+      createPositionedItem('chemical_materials', [4, 0, -2])
+    ]
+  }
+]
+
+// Scoring system
+export class GameScoring {
+  static calculateItemScore(item: BaggageItem, isCorrectSelection: boolean): number {
+    if (isCorrectSelection) {
+      // Bonus points for higher risk items
+      return SCORING_RULES.CORRECT_SELECTION + (item.riskLevel - 1) * 2
+    } else {
+      // Penalty varies by mistake severity
+      if (item.type === 'safe') {
+        return SCORING_RULES.INCORRECT_SELECTION // Selected safe item
+      } else {
+        return SCORING_RULES.INCORRECT_SELECTION * item.riskLevel // Missed dangerous item
+      }
+    }
+  }
+  
+  static calculateTimeBonus(timeRemaining: number, totalTime: number): number {
+    const timeUsed = totalTime - timeRemaining
+    const efficiency = timeRemaining / totalTime
+    return Math.floor(efficiency * SCORING_RULES.TIME_BONUS_PER_SECOND * totalTime)
+  }
+  
+  static calculateFinalScore(
+    correctSelections: number,
+    incorrectSelections: number,
+    timeBonus: number,
+    difficulty: keyof typeof DIFFICULTY_SETTINGS,
+    isPerfect: boolean,
+    noMistakes: boolean
+  ): number {
+    let baseScore = correctSelections * SCORING_RULES.CORRECT_SELECTION + 
+                   incorrectSelections * SCORING_RULES.INCORRECT_SELECTION
+
+    // Apply difficulty multiplier
+    const difficultyMultiplier = DIFFICULTY_SETTINGS[difficulty].scoreMultiplier
+    baseScore = Math.floor(baseScore * difficultyMultiplier)
+    
+    // Add bonuses
+    let bonusScore = timeBonus
+    if (isPerfect) bonusScore += SCORING_RULES.PERFECT_SCORE_BONUS
+    if (noMistakes) bonusScore += SCORING_RULES.NO_MISTAKES_BONUS
+    
+    return Math.max(0, baseScore + bonusScore)
+  }
+}
+
+// Scenario management
+export class ScenarioManager {
+  static getScenario(scenarioId: string): GameScenario | null {
+    return GAME_SCENARIOS.find(scenario => scenario.id === scenarioId) || null
+  }
+  
+  static getScenariosByDifficulty(difficulty: string): GameScenario[] {
+    return GAME_SCENARIOS.filter(scenario => scenario.difficulty === difficulty)
+  }
+  
+  static getNextScenario(currentScenarioId: string): GameScenario | null {
+    const currentIndex = GAME_SCENARIOS.findIndex(s => s.id === currentScenarioId)
+    if (currentIndex >= 0 && currentIndex < GAME_SCENARIOS.length - 1) {
+      return GAME_SCENARIOS[currentIndex + 1]
+    }
+    return null
+  }
+  
+  static validateScenarioCompletion(
+    scenario: GameScenario,
+    selectedItems: string[],
+    score: number
+  ): { passed: boolean; feedback: string[] } {
+    const feedback: string[] = []
+    
+    // Check if passing score achieved
+    const passed = score >= scenario.passingScore
+    
+    // Analyze performance
+    const suspiciousItems = scenario.baggageItems.filter(item => 
+      item.type === 'suspicious' || item.type === 'prohibited'
+    )
+    const correctlyIdentified = suspiciousItems.filter(item => 
+      selectedItems.includes(item.id)
+    ).length
+    
+    const safeItems = scenario.baggageItems.filter(item => item.type === 'safe')
+    const incorrectlySelected = safeItems.filter(item => 
+      selectedItems.includes(item.id)
+    ).length
+    
+    // Generate feedback
+    if (passed) {
+      feedback.push('✅ Scenario completed successfully!')
+    } else {
+      feedback.push('❌ Scenario not passed. Review your selections.')
+    }
+    
+    if (correctlyIdentified === suspiciousItems.length) {
+      feedback.push('🎯 Perfect threat detection!')
+    } else {
+      const missed = suspiciousItems.length - correctlyIdentified
+      feedback.push(`⚠️ ${missed} threats missed`)
+    }
+    
+    if (incorrectlySelected === 0) {
+      feedback.push('✨ No false positives!')
+    } else {
+      feedback.push(`🚫 ${incorrectlySelected} safe items incorrectly flagged`)
+    }
+    
+    return { passed, feedback }
+  }
+}
