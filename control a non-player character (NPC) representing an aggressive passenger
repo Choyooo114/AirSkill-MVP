@@ -1,0 +1,284 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+// Define PlayerActionType enum outside the class
+public enum PlayerActionType
+{
+    Apologize,
+    ExplainPolicy,
+    OfferSolution,
+    Threaten,
+    Ignore,
+    CallForHelp
+}
+
+public class AggressivePassengerAI : MonoBehaviour
+{
+    [Header("Aggression Settings")]
+    [Range(0f, 100f)]
+    public float initialAggressionLevel = 50f;
+    
+    [Header("Aggression Rates")]
+    public float deEscalationRate = 15f;
+    public float escalationRate = 20f;
+    
+    [Header("References")]
+    public Animator animationController;
+    public Text passengerDialogueUI;
+    
+    [Header("Dialogue Lines")]
+    public List<string> dialogueLines = new List<string>
+    {
+        // Calm (0-30)
+        "I understand there might be some confusion. Can we work this out?",
+        "Thank you for listening to my concerns.",
+        "I appreciate your help with this matter.",
+        
+        // Annoyed (30-70)
+        "This is really frustrating! I've been waiting for an answer.",
+        "I'm getting tired of this runaround. What's the solution?",
+        "Can someone please explain what's going on here?",
+        
+        // Enraged (70-100)
+        "This is absolutely unacceptable! I demand to speak to a manager!",
+        "I've had enough of this incompetence! Fix this NOW!",
+        "This is the worst service I've ever experienced!"
+    };
+    
+    // Private variables
+    private float currentAggressionLevel;
+    private bool isEngagedInDialogue = false;
+    
+    void Start()
+    {
+        // Initialize current aggression level
+        currentAggressionLevel = initialAggressionLevel;
+        
+        // Validate references
+        if (animationController == null)
+        {
+            animationController = GetComponent<Animator>();
+            if (animationController == null)
+            {
+                Debug.LogWarning("AggressivePassengerAI: No Animator component found!");
+            }
+        }
+        
+        if (passengerDialogueUI == null)
+        {
+            Debug.LogWarning("AggressivePassengerAI: No dialogue UI Text component assigned!");
+        }
+        
+        // Generate initial dialogue
+        GenerateDialogue();
+        UpdateAnimation();
+        
+        Debug.Log($"AggressivePassengerAI initialized with aggression level: {currentAggressionLevel}");
+    }
+    
+    void Update()
+    {
+        // Optional: Add future complex behaviors like pacing
+        // For now, this can be used for idle behaviors when not in dialogue
+        if (!isEngagedInDialogue)
+        {
+            // Future implementation: Random idle animations, pacing, etc.
+        }
+    }
+    
+    /// <summary>
+    /// Core method to receive and process player actions
+    /// </summary>
+    /// <param name="actionType">The type of action the player performed</param>
+    public void ReceivePlayerAction(PlayerActionType actionType)
+    {
+        if (isEngagedInDialogue)
+        {
+            Debug.Log("AggressivePassengerAI: Already engaged in dialogue, ignoring action.");
+            return;
+        }
+        
+        isEngagedInDialogue = true;
+        
+        // Process the action and update aggression level
+        float previousAggressionLevel = currentAggressionLevel;
+        
+        switch (actionType)
+        {
+            case PlayerActionType.Apologize:
+                currentAggressionLevel -= deEscalationRate;
+                Debug.Log($"Player apologized. Aggression decreased by {deEscalationRate}");
+                break;
+                
+            case PlayerActionType.ExplainPolicy:
+                currentAggressionLevel -= deEscalationRate * 0.7f; // Slightly less effective than apologizing
+                Debug.Log($"Player explained policy. Aggression decreased by {deEscalationRate * 0.7f}");
+                break;
+                
+            case PlayerActionType.OfferSolution:
+                currentAggressionLevel -= deEscalationRate * 1.2f; // More effective than apologizing
+                Debug.Log($"Player offered solution. Aggression decreased by {deEscalationRate * 1.2f}");
+                break;
+                
+            case PlayerActionType.Threaten:
+                currentAggressionLevel += escalationRate * 1.5f; // Very escalating
+                Debug.Log($"Player threatened. Aggression increased by {escalationRate * 1.5f}");
+                break;
+                
+            case PlayerActionType.Ignore:
+                currentAggressionLevel += escalationRate;
+                Debug.Log($"Player ignored. Aggression increased by {escalationRate}");
+                break;
+                
+            case PlayerActionType.CallForHelp:
+                currentAggressionLevel += escalationRate * 0.8f; // Moderately escalating
+                Debug.Log($"Player called for help. Aggression increased by {escalationRate * 0.8f}");
+                break;
+        }
+        
+        // Clamp aggression level between 0 and 100
+        currentAggressionLevel = Mathf.Clamp(currentAggressionLevel, 0f, 100f);
+        
+        Debug.Log($"Action received: {actionType}. Aggression level: {previousAggressionLevel:F1} → {currentAggressionLevel:F1}");
+        
+        // Update dialogue and animation
+        GenerateDialogue();
+        UpdateAnimation();
+        
+        // Reset dialogue engagement after a short delay
+        Invoke(nameof(ResetDialogueEngagement), 2f);
+    }
+    
+    /// <summary>
+    /// Generate appropriate dialogue based on current aggression level
+    /// </summary>
+    private void GenerateDialogue()
+    {
+        if (passengerDialogueUI == null)
+        {
+            Debug.LogWarning("AggressivePassengerAI: Cannot display dialogue - UI Text component not assigned!");
+            return;
+        }
+        
+        string selectedDialogue = "";
+        
+        if (currentAggressionLevel < 30f)
+        {
+            // Calm dialogue (indices 0-2)
+            int randomIndex = Random.Range(0, 3);
+            selectedDialogue = dialogueLines[randomIndex];
+        }
+        else if (currentAggressionLevel < 70f)
+        {
+            // Annoyed dialogue (indices 3-5)
+            int randomIndex = Random.Range(3, 6);
+            selectedDialogue = dialogueLines[randomIndex];
+        }
+        else
+        {
+            // Enraged dialogue (indices 6-8)
+            int randomIndex = Random.Range(6, 9);
+            selectedDialogue = dialogueLines[randomIndex];
+        }
+        
+        passengerDialogueUI.text = selectedDialogue;
+        Debug.Log($"Dialogue updated: \"{selectedDialogue}\"");
+    }
+    
+    /// <summary>
+    /// Update animation based on current aggression level
+    /// </summary>
+    private void UpdateAnimation()
+    {
+        if (animationController == null)
+        {
+            Debug.LogWarning("AggressivePassengerAI: Cannot play animation - Animator component not assigned!");
+            return;
+        }
+        
+        string animationName = "";
+        
+        if (currentAggressionLevel < 30f)
+        {
+            animationName = "CalmGesture";
+            animationController.SetTrigger("PlayCalm");
+        }
+        else if (currentAggressionLevel < 70f)
+        {
+            animationName = "AnnoyedGesture";
+            animationController.SetTrigger("PlayAnnoyed");
+        }
+        else
+        {
+            animationName = "AngryGesture";
+            animationController.SetTrigger("PlayAngry");
+        }
+        
+        // Set aggression level parameter for blend trees (if used)
+        animationController.SetFloat("AggressionLevel", currentAggressionLevel);
+        
+        Debug.Log($"Animation updated: {animationName} (Aggression: {currentAggressionLevel:F1})");
+    }
+    
+    /// <summary>
+    /// Public getter for current aggression level
+    /// </summary>
+    /// <returns>Current aggression level (0-100)</returns>
+    public float GetCurrentAggressionLevel()
+    {
+        return currentAggressionLevel;
+    }
+    
+    /// <summary>
+    /// Get the current aggression state as a readable string
+    /// </summary>
+    /// <returns>String representation of aggression state</returns>
+    public string GetAggressionState()
+    {
+        if (currentAggressionLevel < 30f)
+            return "Calm";
+        else if (currentAggressionLevel < 70f)
+            return "Annoyed";
+        else
+            return "Enraged";
+    }
+    
+    /// <summary>
+    /// Reset dialogue engagement flag
+    /// </summary>
+    private void ResetDialogueEngagement()
+    {
+        isEngagedInDialogue = false;
+    }
+    
+    /// <summary>
+    /// Public method to manually set aggression level (for testing or special events)
+    /// </summary>
+    /// <param name="newLevel">New aggression level (0-100)</param>
+    public void SetAggressionLevel(float newLevel)
+    {
+        currentAggressionLevel = Mathf.Clamp(newLevel, 0f, 100f);
+        GenerateDialogue();
+        UpdateAnimation();
+        Debug.Log($"Aggression level manually set to: {currentAggressionLevel}");
+    }
+    
+    /// <summary>
+    /// Check if passenger is currently calm
+    /// </summary>
+    /// <returns>True if aggression level is below 30</returns>
+    public bool IsCalm()
+    {
+        return currentAggressionLevel < 30f;
+    }
+    
+    /// <summary>
+    /// Check if passenger is currently enraged
+    /// </summary>
+    /// <returns>True if aggression level is above 70</returns>
+    public bool IsEnraged()
+    {
+        return currentAggressionLevel > 70f;
+    }
+}
